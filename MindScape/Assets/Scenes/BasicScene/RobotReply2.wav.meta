@@ -1,0 +1,12 @@
+fileFormatVersion: 2
+guid: b821e3d38a65075a32a772faebf1f5ad
+AudioImporter:
+  serializedVersion: 6
+  externalObjects: {}
+  defaultSettings:
+    loadType: 0
+    sampleRateSetting: 0
+    compressionFormat: 1
+    quality: 1
+  platformSettingOverrides: {}
+  preloadAudioData: 1
