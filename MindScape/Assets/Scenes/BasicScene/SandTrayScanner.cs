@@ -90,7 +90,7 @@ public class SandTrayScanner : MonoBehaviour
             RenderTexture.active = target;
             var photo = new Texture2D(width, height, TextureFormat.RGB24, false);
             photo.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-            photo.Apply(false, true);
+            photo.Apply(false, false);
             return photo;
         }
         finally

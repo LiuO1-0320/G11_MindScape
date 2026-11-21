@@ -1,0 +1,5 @@
+{
+  "endpoint": "https://api.siliconflow.cn/v1/chat/completions",
+  "apiKey": "API—KEY",
+  "model": "deepseek-ai/DeepSeek-V4.1-Flash"
+}

@@ -38,6 +38,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 100}
   m_Enabled: 1
   m_Script: {fileID: 11500000, guid: 7f48992e450175807fc6d2a3cacb7f11, type: 3}
+  llmSettings: {fileID: 4900000, guid: 74b710c621be444ca98228b1bf32451c, type: 3}
   replies:
   - {fileID: 8300000, guid: 2c3667a5b836cd7249e3f9644eac0635, type: 3}
   - {fileID: 8300000, guid: a78c880ce23f433a187fb4a12aab45e1, type: 3}

@@ -9,6 +9,9 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 public class RoomVoiceChat : MonoBehaviour
 {
     [SerializeField] AudioClip[] replies = new AudioClip[0];
+    [SerializeField] TextAsset llmSettings;
+    SiliconFlowChat cloud;
+    int modeVersion;
     static readonly string[] Prompts = {
         "我听到了。你愿意说说，刚才为什么选了这件沙具吗？",
         "如果给这个小场景起个名字，你会选什么呢？",
@@ -21,6 +24,7 @@ public class RoomVoiceChat : MonoBehaviour
     Task recognitionQueue = Task.CompletedTask;
     readonly List<Text> userBubbles = new List<Text>();
     readonly List<Text> timeline = new List<Text>();
+    readonly List<AudioClip> generatedVoices = new List<AudioClip>();
     readonly Dictionary<Text, RawImage> photos = new Dictionary<Text, RawImage>();
     Coroutine narration;
     ScrollRect history;
@@ -36,10 +40,12 @@ public class RoomVoiceChat : MonoBehaviour
     AudioClip recording;
     string device;
     float started;
-    bool llm, pending;
+    bool llm = true;
+    bool pending;
 
     void Awake()
     {
+        cloud = new SiliconFlowChat(llmSettings);
         font = Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "Microsoft YaHei UI", "Noto Sans CJK SC", "Noto Sans SC", "Droid Sans Fallback", "PingFang SC", "Arial" }, 28);
         speaker = gameObject.AddComponent<AudioSource>();
         recognizer = gameObject.AddComponent<WhisperManager>();
@@ -138,8 +144,8 @@ public class RoomVoiceChat : MonoBehaviour
     void ResetStatus()
     {
         mode.text = llm ? "LLM 模式 ⇄" : "本地模式 ⇄";
-        status.text = llm ? "LLM 待接入，点击右上角可返回本地模式。" : "上下滑动查看记录 · 点击气泡回听";
-        action.text = llm ? "语音待接入" : "点击录音";
+        status.text = llm ? (cloud.Ready ? "发送后，录音将上传至 SiliconFlow 识别。" : "请填写 SiliconFlowConfig.json 中的地址和密钥。") : "上下滑动查看记录 · 点击气泡回听";
+        action.text = llm && !cloud.Ready ? "等待接口配置" : "点击录音";
     }
 
     void SwitchMode()
@@ -149,12 +155,13 @@ public class RoomVoiceChat : MonoBehaviour
         CancelRecording();
         speaker.Stop();
         llm = !llm;
+        modeVersion++;
         ResetStatus();
     }
 
     void TapRecord()
     {
-        if (llm || pending) return;
+        if ((llm && !cloud.Ready) || pending) return;
         if (recording != null) FinishRecording();
         else StartCoroutine(StartRecording());
     }
@@ -217,45 +224,108 @@ public class RoomVoiceChat : MonoBehaviour
         Destroy(source);
         messages.Add(clip);
         transcripts.Add("正在识别语言和文字…");
-        AppendBubbles(messages.Count - 1);
+        Text cloudBubble = AppendBubbles(messages.Count - 1);
         recognitionQueue = Transcribe(tryAfter: recognitionQueue, index: messages.Count - 1,
-            samples: samples, frequency: clip.frequency, channels: clip.channels);
-        Play(replies[(messages.Count - 1) % Prompts.Length]);
+            samples: samples, frequency: clip.frequency, channels: clip.channels, cloudBubble: cloudBubble, version: modeVersion);
+        if (!llm) Play(replies[(messages.Count - 1) % Prompts.Length]);
     }
 
     void Play(AudioClip clip)
     {
-        if (recording != null || llm || clip == null) return;
+        if (recording != null || clip == null) return;
         StopNarration();
         speaker.clip = clip;
         speaker.Play();
     }
 
-    async Task Transcribe(Task tryAfter, int index, float[] samples, int frequency, int channels)
+    async Task Transcribe(Task tryAfter, int index, float[] samples, int frequency, int channels, Text cloudBubble, int version)
     {
+        string recognized = null;
         try
         {
             await tryAfter;
             if (this == null) return;
-            var result = await recognizer.GetTextAsync(samples, frequency, channels);
-            if (this == null) return;
-            if (result == null) transcripts[index] = "本机识别不可用，仍可回听。";
-            else if (string.IsNullOrWhiteSpace(result.Result)) transcripts[index] = "未识别到清晰语音";
+            if (cloudBubble != null)
+            {
+                recognized = await cloud.TranscribeRecording(samples, frequency, channels, Active);
+                if (this == null) return;
+                transcripts[index] = string.IsNullOrWhiteSpace(recognized) ? "未识别到清晰语音" : recognized;
+            }
             else
             {
-                string language = result.Language == "zh" ? "中文" :
-                    result.Language == "en" ? "英语" : result.Language;
-                transcripts[index] = language + "  ·  " + result.Result.Trim();
+                var result = await recognizer.GetTextAsync(samples, frequency, channels);
+                if (this == null) return;
+                if (result == null) transcripts[index] = "本机识别不可用，仍可回听。";
+                else if (string.IsNullOrWhiteSpace(result.Result)) transcripts[index] = "未识别到清晰语音";
+                else
+                {
+                    string language = result.Language == "zh" ? "中文" :
+                        result.Language == "en" ? "英语" : result.Language;
+                    transcripts[index] = language + "  ·  " + result.Result.Trim();
+                }
             }
         }
         catch (System.Exception error)
         {
             if (this == null) return;
             Debug.LogWarning("Voice transcription failed: " + error.GetType().Name);
-            transcripts[index] = "转写失败，仍可回听。";
+            transcripts[index] = error is System.OperationCanceledException ? "已取消云端转写，仍可回听。" :
+                error is System.InvalidOperationException && cloudBubble != null ? error.Message : "转写失败，仍可回听。";
         }
         var label = userBubbles[index];
         label.text = VoiceCaption(index);
+        LayoutHistory();
+        if (cloudBubble == null) return;
+        bool Active() => this != null && isActiveAndEnabled && version == modeVersion && llm;
+        string answer = "未取得有效转写，请重新录音。";
+        bool hasReply = false;
+        if (!Active()) answer = "本次请求已取消。";
+        else if (!string.IsNullOrWhiteSpace(recognized))
+        {
+            cloudBubble.text = "小葵正在回复…";
+            LayoutHistory();
+            try { answer = await cloud.Reply(recognized, Active); hasReply = true; }
+            catch (System.OperationCanceledException) { answer = "请求已取消。"; }
+            catch (System.InvalidOperationException error) { answer = error.Message; }
+            catch (System.Exception) { answer = "未能读取服务回复，请检查接口配置后重试。"; }
+        }
+        if (this == null || cloudBubble == null) return;
+        cloudBubble.text = "小葵\n" + answer;
+        LayoutHistory();
+        if (hasReply && Active())
+            await VoiceReply(cloudBubble, answer, Active);
+    }
+
+    async Task VoiceReply(Text label, string answer, System.Func<bool> active)
+    {
+        var button = label.transform.parent.GetComponent<Button>();
+        button.interactable = false;
+        label.text = "小葵 · 正在生成语音\n" + answer;
+        LayoutHistory();
+        try
+        {
+            var clip = await cloud.Synthesize(answer, active);
+            generatedVoices.Add(clip);
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => Play(clip));
+            label.text = "小葵  ▶\n" + answer;
+            button.interactable = true;
+            if (!pending) Play(clip);
+        }
+        catch (System.Exception error)
+        {
+            if (this == null || label == null) return;
+            string reason = error is System.InvalidOperationException ? error.Message : "语音未生成";
+            label.text = $"小葵 · {reason}，点此重试\n" + answer;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(async () =>
+            {
+                if (!llm) { status.text = "请切换到 LLM 模式重试语音。"; return; }
+                int version = modeVersion;
+                await VoiceReply(label, answer, () => this != null && isActiveAndEnabled && llm && modeVersion == version);
+            });
+            button.interactable = true;
+        }
         LayoutHistory();
     }
 
@@ -264,7 +334,7 @@ public class RoomVoiceChat : MonoBehaviour
         return $"我  ▶  {Mathf.CeilToInt(messages[index].length)} 秒\n{transcripts[index]}";
     }
 
-    void AppendBubbles(int index)
+    Text AppendBubbles(int index)
     {
         greeting.gameObject.SetActive(false);
         var user = ButtonAt(VoiceCaption(index), 68, 0, 380, 60,
@@ -273,10 +343,31 @@ public class RoomVoiceChat : MonoBehaviour
         user.supportRichText = false;
         userBubbles.Add(user);
         timeline.Add(user);
+        if (llm)
+        {
+            return AddCloudBubble("等待语音转写…");
+        }
         int reply = index % Prompts.Length;
         timeline.Add(ButtonAt("小葵  ▶\n" + Prompts[reply], 8, 0, 380, 60,
             () => Play(replies[reply]), content));
         LayoutHistory();
+        return null;
+    }
+
+    Text AddCloudBubble(string initialText)
+    {
+        var rect = Box(content, "LLM reply", 8, 0, 380, 60);
+        var background = rect.gameObject.AddComponent<Image>();
+        background.sprite = rounded;
+        background.type = Image.Type.Sliced;
+        var replyText = Label(rect, initialText, 0, 0, 380, 60, 24);
+        var replay = rect.gameObject.AddComponent<Button>();
+        replay.targetGraphic = background;
+        replay.interactable = false;
+        replyText.supportRichText = false;
+        timeline.Add(replyText);
+        LayoutHistory();
+        return replyText;
     }
 
     void LayoutHistory()
@@ -309,6 +400,34 @@ public class RoomVoiceChat : MonoBehaviour
         timeline.Add(label);
         LayoutHistory();
         SpeakReport(voice);
+        if (llm && cloud.Ready)
+        {
+            var reply = AddCloudBubble("小葵正在查看沙盘照片和清单…");
+            recognitionQueue = AnalyzeTray(recognitionQueue, reply, caption, photo, modeVersion);
+        }
+        else if (llm) AddCloudBubble("已保存本次沙盘照片。填写 SiliconFlow 接口配置后可进行图片分析。");
+    }
+
+    async Task AnalyzeTray(Task previous, Text label, string inventory, Texture2D photo, int version)
+    {
+        bool Active() => this != null && isActiveAndEnabled && llm && modeVersion == version;
+        try
+        {
+            await previous;
+            if (!Active()) throw new System.OperationCanceledException();
+            string answer = await cloud.AnalyzeTray(photo.EncodeToJPG(88), inventory, Active);
+            if (!Active()) throw new System.OperationCanceledException();
+            label.text = "小葵\n" + answer;
+            LayoutHistory();
+            await VoiceReply(label, answer, Active);
+        }
+        catch (System.Exception error)
+        {
+            if (this == null || label == null) return;
+            label.text = error is System.OperationCanceledException ? "本次沙盘分析已取消。" :
+                error is System.InvalidOperationException ? error.Message : "未能分析这张照片，请再次点击识别沙盘。";
+            LayoutHistory();
+        }
     }
 
     void SpeakReport(List<AudioClip> voice)
@@ -369,6 +488,7 @@ public class RoomVoiceChat : MonoBehaviour
 
     void OnDisable()
     {
+        modeVersion++;
         StopAllCoroutines();
         pending = false;
         CancelRecording();
@@ -378,6 +498,7 @@ public class RoomVoiceChat : MonoBehaviour
 
     void OnDestroy()
     {
+        foreach (var clip in generatedVoices) Destroy(clip);
         foreach (var clip in messages) Destroy(clip);
         foreach (var image in photos.Values) Destroy(image.texture);
         if (font != null) Destroy(font);
