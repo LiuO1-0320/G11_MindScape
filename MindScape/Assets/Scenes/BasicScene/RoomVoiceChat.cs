@@ -70,8 +70,8 @@ public class RoomVoiceChat : MonoBehaviour
         Label(panel, "小葵  /  会话", 18, 18, 272, 56, 30).fontStyle = FontStyle.Bold;
         mode = ButtonAt("本地模式 ⇄", 296, 18, 166, 56, SwitchMode);
         status = Label(panel, "", 18, 78, 444, 68, 21);
-        action = ButtonAt("", 18, 870, 444, 68, TapRecord);
-        action.transform.parent.GetComponent<Image>().color = honey;
+        action = ButtonAt("", 18, 870, 444, 68, TapRecord, highlightOnAim: true);
+
         var viewport = Box(panel, "Chat history", 12, 150, 456, 702);
         viewport.gameObject.AddComponent<Image>().color = Color.clear;
         viewport.gameObject.AddComponent<RectMask2D>();
@@ -126,18 +126,19 @@ public class RoomVoiceChat : MonoBehaviour
         return text;
     }
 
-    Text ButtonAt(string title, int x, int y, int w, int h, UnityEngine.Events.UnityAction click, Transform parent = null)
+    Text ButtonAt(string title, int x, int y, int w, int h, UnityEngine.Events.UnityAction click, Transform parent = null, bool highlightOnAim = false)
     {
         var rect = Box(parent == null ? panel : parent, "Button", x, y, w, h);
         var image = rect.gameObject.AddComponent<Image>();
         image.sprite = rounded;
         image.type = Image.Type.Sliced;
         image.color = new Color32(255, 252, 239, 255);
-        var button = rect.gameObject.AddComponent<Button>();
+        Button button = highlightOnAim ? (Button)rect.gameObject.AddComponent<TrayActionButton>() : rect.gameObject.AddComponent<Button>();
         button.targetGraphic = image;
         button.onClick.AddListener(click);
         var label = Label(rect, title, 0, 0, w, h, 24);
         label.alignment = TextAnchor.MiddleCenter;
+        if (button is TrayActionButton highlighted) highlighted.SetLabel(label);
         return label;
     }
 
