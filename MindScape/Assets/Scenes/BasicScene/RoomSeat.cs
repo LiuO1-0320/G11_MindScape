@@ -17,9 +17,14 @@ public class RoomSeat : XRSimpleInteractable
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
         base.OnSelectEntered(args);
+        ToggleSeat(args.interactorObject.transform.GetComponentInParent<XROrigin>());
+    }
+
+    public void ToggleSeat(XROrigin player)
+    {
         if (occupied == this) { Stand(); return; }
         if (occupied != null) occupied.Stand();
-        rig = args.interactorObject.transform.GetComponentInParent<XROrigin>();
+        rig = player;
         if (rig == null || rig.Camera == null) return;
         occupied = this;
         previousEye = rig.Camera.transform.position;
