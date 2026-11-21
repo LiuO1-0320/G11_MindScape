@@ -1,0 +1,5 @@
+<linker>
+  <assembly fullname="Unity.XR.Interaction.Toolkit" ignoreIfMissing="1">
+    <type fullname="UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster" preserve="all" />
+  </assembly>
+</linker>

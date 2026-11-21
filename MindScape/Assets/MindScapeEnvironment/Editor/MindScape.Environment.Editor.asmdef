@@ -1,0 +1,6 @@
+{
+  "name": "MindScape.Environment.Editor",
+  "references": ["MindScape.Environment", "UnityEditor.TestRunner", "UnityEngine.TestRunner"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

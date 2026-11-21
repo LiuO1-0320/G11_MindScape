@@ -1,0 +1,5 @@
+{
+  "name": "MindScape.Environment",
+  "references": ["UnityEngine.UI"],
+  "autoReferenced": true
+}

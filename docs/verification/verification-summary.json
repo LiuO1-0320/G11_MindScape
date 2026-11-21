@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-21T23:27:12.675475+08:00",
+  "baseCommit": "23abb6f8493073898507d1783535ea0fbf8cab8d",
+  "unityVersion": "2022.3.62f3",
+  "playMode": {
+    "status": "passed",
+    "projectPath": "D:/Files/study/硕士/港硕/课程相关/5140/project/G11_MindScape/MindScape/Assets",
+    "unityVersion": "2022.3.62f3",
+    "time": "2026-11-21T15:25:37.5504093Z",
+    "message": "",
+    "passed": 6,
+    "failed": 0,
+    "skipped": 0
+  },
+  "offline": {
+    "Status": "passed",
+    "RuntimeSourceCount": 5,
+    "SessionTests": 22,
+    "UnityEngineReferences": "C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.62f3\\Editor\\Data",
+    "UiReference": "D:\\Files\\study\\硕士\\港硕\\课程相关\\5140\\project\\G11_MindScape\\MindScape\\Library\\ScriptAssemblies\\UnityEngine.UI.dll",
+    "RunAt": "2026-11-21T23:25:38.0923209+08:00",
+    "Scope": "Complete environment runtime assembly compilation and shared consent/preferences logic. Not Unity Play Mode or headset validation."
+  },
+  "sourceSha256": {
+    "MindScape/Assets/MindScapeEnvironment/AmbienceBootstrap.cs": "d716dc9a832a36e8a9ac09ee6f03358559328573bd730f2719d96e983b0b1740",
+    "MindScape/Assets/MindScapeEnvironment/AmbienceCommandBridge.cs": "f666bf10c656433ca40985f4ff4ff84df040a2defbdb2017b137bd69a1972c46",
+    "MindScape/Assets/MindScapeEnvironment/AmbienceController.cs": "6062d7b664c1c69a2df0047b65fa3f97a7f3bb38781d12d38df8991cc3379ed0",
+    "MindScape/Assets/MindScapeEnvironment/AmbiencePanel.cs": "0513837b66cc0c610e67372cd8b202dde50e4ba1aa9bc2ab9df07ae4eb803a8d",
+    "MindScape/Assets/MindScapeEnvironment/AmbienceSession.cs": "f965fde088c524439c407865473f2eb86d1d21c0555067ab91e3bcb2e1933a06",
+    "MindScape/Assets/MindScapeEnvironment/Editor/AmbienceTestAutomation.cs": "b32f42095810a296499e4ceacf9d3b6f4a84909c067ef307d32a975819349a7f",
+    "MindScape/Assets/MindScapeEnvironment/Editor/AmbienceVerification.cs": "0cc404188738d527d06c946d057483579ab03bdc9594549e67f8536d5a81906a",
+    "MindScape/Assets/MindScapeEnvironment/Editor/MindScape.Environment.Editor.asmdef": "936c418fc6f6e861af58b92084bf726561e17eb9d9e276ebaf8ca81414941fed",
+    "MindScape/Assets/MindScapeEnvironment/link.xml": "e88a78dc649adffa74eba0c42c9721224b5a28c76c65c471bf444613fb84c085",
+    "MindScape/Assets/MindScapeEnvironment/MindScape.Environment.asmdef": "7ff36c2815ee3d7ef26a76288084d8c50a6bffe56f07ed37510cf4b5e0a77ce3",
+    "MindScape/Assets/MindScapeEnvironment/Tests/PlayMode/AmbiencePlayModeTests.cs": "5f988f2f94baac3838ed8c1224430728ed3014a2da27ab3df900461e9744ba69",
+    "MindScape/Assets/MindScapeEnvironment/Tests/PlayMode/MindScape.Environment.PlayModeTests.asmdef": "7816dd8d56beb14052d35369659a7a944cfce6c57712010d0bd063b4780707f5"
+  },
+  "limits": [
+    "Play Mode scene execution verified using test fixtures, not a live LLM response.",
+    "Physical headset controls and subjective listening comfort have not been verified."
+  ]
+}

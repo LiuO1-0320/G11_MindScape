@@ -1,0 +1,51 @@
+AmbiencePlayModeTests.CommandBridgeIsProposalOnlyAndRejectsInvalidCommands : Passed
+
+AmbiencePlayModeTests.ConsentAndGradualTransition : Passed
+
+AmbiencePlayModeTests.DesktopPanelButtonsOperateTheController : Passed
+
+AmbiencePlayModeTests.PreferencesAndDisableStayConsistent : Passed
+
+AmbiencePlayModeTests.RapidSwitchRetainsAudioAndFinishesLatestTarget : Passed
+
+AmbiencePlayModeTests : Passed
+
+D:/Files/study/硕士/港硕/课程相关/5140/project/G11_MindScape/MindScape/Library/ScriptAssemblies/MindScape.Environment.PlayModeTests.dll : Passed
+
+MindScape : Passed
+
+AmbiencePlayModeTests.BasicSceneRunsBothEnvironmentScenarios : Passed
+
+AmbiencePlayModeTests.CommandBridgeIsProposalOnlyAndRejectsInvalidCommands : Passed
+
+AmbiencePlayModeTests.ConsentAndGradualTransition : Passed
+
+AmbiencePlayModeTests.DesktopPanelButtonsOperateTheController : Passed
+
+AmbiencePlayModeTests.PreferencesAndDisableStayConsistent : Passed
+
+AmbiencePlayModeTests.RapidSwitchRetainsAudioAndFinishesLatestTarget : Passed
+
+AmbiencePlayModeTests : Passed
+
+D:/Files/study/硕士/港硕/课程相关/5140/project/G11_MindScape/MindScape/Library/ScriptAssemblies/MindScape.Environment.PlayModeTests.dll : Passed
+
+MindScape : Passed
+
+AmbiencePlayModeTests.BasicSceneRunsBothEnvironmentScenarios : Passed
+
+AmbiencePlayModeTests.CommandBridgeIsProposalOnlyAndRejectsInvalidCommands : Passed
+
+AmbiencePlayModeTests.ConsentAndGradualTransition : Passed
+
+AmbiencePlayModeTests.DesktopPanelButtonsOperateTheController : Passed
+
+AmbiencePlayModeTests.PreferencesAndDisableStayConsistent : Passed
+
+AmbiencePlayModeTests.RapidSwitchRetainsAudioAndFinishesLatestTarget : Passed
+
+AmbiencePlayModeTests : Passed
+
+D:/Files/study/硕士/港硕/课程相关/5140/project/G11_MindScape/MindScape/Library/ScriptAssemblies/MindScape.Environment.PlayModeTests.dll : Passed
+
+MindScape : Passed

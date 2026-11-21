@@ -1,0 +1,9 @@
+{
+  "Status": "passed",
+  "RuntimeSourceCount": 5,
+  "SessionTests": 22,
+  "UnityEngineReferences": "C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.62f3\\Editor\\Data",
+  "UiReference": "D:\\Files\\study\\硕士\\港硕\\课程相关\\5140\\project\\G11_MindScape\\MindScape\\Library\\ScriptAssemblies\\UnityEngine.UI.dll",
+  "RunAt": "2026-11-21T23:25:38.0923209+08:00",
+  "Scope": "Complete environment runtime assembly compilation and shared consent/preferences logic. Not Unity Play Mode or headset validation."
+}
