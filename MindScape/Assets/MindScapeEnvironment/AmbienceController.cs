@@ -10,12 +10,15 @@ namespace MindScape.Environment
         {
             public string preset, completedPreset, pendingPreset, pendingRequestId, requestId, source;
             public float brightness, volume, effectiveVolume, kelvin, soundLevel;
-            public bool muted, transitioning, brightnessOverridden, audioAvailable;
+            public bool muted, transitioning, brightnessOverridden, audioAvailable, breathing;
+            public int sadnessPhase;
             public LampState[] lights;
         }
         public static AmbienceController Instance { get; private set; }
         public Light[] lights = new Light[0];
-        public AudioClip sadnessSound, angerSound, calmSound;
+        public AudioClip sadnessIntroSound, sadnessSound, angerSound, calmSound;
+        // Sadness plays the intro clip first, then crossfades into the nature clip.
+        public float sadnessIntroSeconds = 90f;
         public event Action<string> StateChanged;
         public string LastTrace { get; private set; } = "Ready";
         public string PendingPreset => session.PendingPreset;
@@ -26,15 +29,21 @@ namespace MindScape.Environment
         public float Brightness => session.Brightness;
         public float SoundLevel => session.SoundLevel;
         public const float TransitionSeconds = 2.5f;
+        // Slow light swell for the sadness preset only; other presets stay perfectly still.
+        public const float BreathingPeriod = 8f, BreathingAmplitude = .05f;
+        const float IntroCrossfadeSeconds = 3f;
+        public bool SadnessIntroActive => initialized && session.Preset == "sadness"
+            && sadnessIntroSound != null && sadnessPhase == 0;
 
         readonly AmbienceSession session = new AmbienceSession();
-        readonly AudioSource[] voices = new AudioSource[3];
-        readonly float[] fromVolume = new float[3], toVolume = new float[3];
+        readonly AudioSource[] voices = new AudioSource[4];
+        readonly float[] fromVolume = new float[4], toVolume = new float[4];
         float[] baselineIntensity, fromIntensity, targetIntensity, baselineTemperature;
         bool[] baselineUseTemperature;
         Color[] baselineColor, fromColor, targetColor;
-        float started;
-        bool moving, initialized;
+        float started, settledAt, introSince = -1, audioStarted;
+        bool moving, initialized, breathing, audioMoving;
+        int sadnessPhase;
         string completedPreset = "baseline";
         public static bool IsPreset(string id) => AmbienceSession.IsPreset(id);
         // Unity's temperature utility returns linear RGB; Light.color uses the color-field representation.
@@ -61,7 +70,7 @@ namespace MindScape.Environment
                 baselineTemperature[i] = lights[i].colorTemperature;
                 baselineUseTemperature[i] = lights[i].useColorTemperature;
             }
-            var clips = new[] { sadnessSound, angerSound, calmSound };
+            var clips = new[] { sadnessIntroSound, sadnessSound, angerSound, calmSound };
             for (int i = 0; i < voices.Length; i++)
             {
                 voices[i] = gameObject.AddComponent<AudioSource>();
@@ -123,7 +132,13 @@ namespace MindScape.Environment
                     ? baselineColor[i] * (baselineUseTemperature[i] ? TemperatureColor(baselineTemperature[i]) : Color.white)
                     : TemperatureColor(session.Kelvin);
             }
-            int selected = session.Preset == "sadness" ? 0 : session.Preset == "anger" ? 1 : session.Preset == "calm" ? 2 : -1;
+            audioMoving = false;
+            if (session.Preset != "sadness") sadnessPhase = 0;
+            else if (completedPreset != "sadness")
+            { sadnessPhase = sadnessIntroSound == null ? 1 : 0; introSince = -1; }
+            int selected = session.Preset == "sadness"
+                ? sadnessIntroSound != null && sadnessPhase == 0 ? 0 : 1
+                : session.Preset == "anger" ? 2 : session.Preset == "calm" ? 3 : -1;
             for (int i = 0; i < voices.Length; i++)
             {
                 var voice = voices[i]; fromVolume[i] = voice.volume;
@@ -134,8 +149,15 @@ namespace MindScape.Environment
         }
         void Update()
         {
-            if (!initialized || !moving) return;
-            EvaluateTransition(Mathf.Clamp01((Time.unscaledTime - started) / TransitionSeconds));
+            if (!initialized) return;
+            if (moving) { EvaluateTransition(Mathf.Clamp01((Time.unscaledTime - started) / TransitionSeconds)); return; }
+            if (session.Preset == "sadness" && sadnessPhase == 0 && sadnessIntroSound != null && voices[0].clip != null)
+            {
+                if (introSince < 0) introSince = Time.unscaledTime;
+                else if (Time.unscaledTime - introSince >= sadnessIntroSeconds) StartIntroCrossfade();
+            }
+            if (audioMoving) EvaluateIntroCrossfade(Mathf.Clamp01((Time.unscaledTime - audioStarted) / IntroCrossfadeSeconds));
+            if (breathing) ApplyBreathing();
         }
         void EvaluateTransition(float t)
         {
@@ -150,7 +172,33 @@ namespace MindScape.Environment
             moving = false; completedPreset = session.Preset;
             for (int i = 0; i < voices.Length; i++) if (toVolume[i] == 0) voices[i].Stop();
             if (session.Preset == "baseline") RestoreColorSettings();
+            breathing = session.Preset == "sadness"; settledAt = Time.unscaledTime;
+            if (breathing && sadnessPhase == 0 && introSince < 0) introSince = Time.unscaledTime;
             Trace("transition-complete");
+        }
+        void StartIntroCrossfade()
+        {
+            sadnessPhase = 1; introSince = 0;
+            fromVolume[0] = voices[0].volume; fromVolume[1] = voices[1].volume;
+            toVolume[0] = 0; toVolume[1] = voices[1].clip != null ? session.Volume : 0;
+            if (toVolume[1] > 0 && !voices[1].isPlaying) voices[1].Play();
+            audioStarted = Time.unscaledTime; audioMoving = true;
+            Trace("intro-crossfade-start");
+        }
+        void EvaluateIntroCrossfade(float t)
+        {
+            float eased = t * t * (3 - 2 * t);
+            voices[0].volume = Mathf.Lerp(fromVolume[0], toVolume[0], eased);
+            voices[1].volume = Mathf.Lerp(fromVolume[1], toVolume[1], eased);
+            if (t < 1) return;
+            audioMoving = false; voices[0].Stop();
+            Trace("intro-crossfade-complete");
+        }
+        void ApplyBreathing()
+        {
+            float factor = 1f + BreathingAmplitude * Mathf.Sin(2f * Mathf.PI * (Time.unscaledTime - settledAt) / BreathingPeriod);
+            for (int i = 0; i < lights.Length; i++) if (lights[i] != null)
+                lights[i].intensity = targetIntensity[i] * factor;
         }
         void RestoreColorSettings()
         {
@@ -175,8 +223,9 @@ namespace MindScape.Environment
                 pendingPreset = session.PendingPreset, pendingRequestId = session.PendingId,
                 requestId = session.RequestId, source = session.Source, brightness = session.Brightness,
                 volume = session.Volume, soundLevel = session.SoundLevel, effectiveVolume = actualVolume,
-                kelvin = session.Kelvin, muted = session.Muted, transitioning = moving,
-                brightnessOverridden = session.BrightnessOverridden, audioAvailable = audioAvailable, lights = lampStates });
+                kelvin = session.Kelvin, muted = session.Muted, transitioning = moving, breathing = breathing,
+                sadnessPhase = sadnessPhase, brightnessOverridden = session.BrightnessOverridden,
+                audioAvailable = audioAvailable, lights = lampStates });
         }
         void Trace(string action)
         {
@@ -190,7 +239,7 @@ namespace MindScape.Environment
         {
             if (Instance == this) Instance = null;
             if (!initialized) return;
-            moving = false;
+            moving = false; audioMoving = false; breathing = false; introSince = -1; sadnessPhase = 0;
             foreach (var voice in voices) { voice.Stop(); voice.volume = 0; }
             for (int i = 0; i < lights.Length; i++) if (lights[i] != null) lights[i].intensity = baselineIntensity[i];
             RestoreColorSettings(); session.Restore("disabled"); completedPreset = "baseline";

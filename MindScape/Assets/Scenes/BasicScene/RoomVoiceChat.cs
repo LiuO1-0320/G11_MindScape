@@ -11,6 +11,7 @@ public class RoomVoiceChat : MonoBehaviour
     [SerializeField] AudioClip[] replies = new AudioClip[0];
     [SerializeField] TextAsset llmSettings;
     SiliconFlowChat cloud;
+    readonly EmotionAmbienceLink ambienceLink = new EmotionAmbienceLink();
     int modeVersion;
     static readonly string[] Prompts = {
         "我听到了。你愿意说说，刚才为什么选了这件沙具吗？",
@@ -292,6 +293,7 @@ public class RoomVoiceChat : MonoBehaviour
         if (this == null || cloudBubble == null) return;
         cloudBubble.text = "小葵\n" + answer;
         LayoutHistory();
+        if (hasReply && Active()) ambienceLink.HandleTurn(cloud, Active);
         if (hasReply && Active())
             await VoiceReply(cloudBubble, answer, Active);
     }

@@ -121,6 +121,27 @@ internal class SiliconFlowChat
         return answer;
     }
 
+    // Emotion observation for the ambience module: reads recent turns, returns only the
+    // raw JSON command line the ambience bridge expects, or "" when nothing usable came back.
+    public async Task<string> ClassifyEmotion(Func<bool> active)
+    {
+        const string rules = "你是心理咨询室的氛围观察器，不参与对话，只判断访客当前的主导情绪。"
+            + "只输出一行 JSON，不要输出任何其他文字，格式：{\"action\":\"propose_ambience\",\"preset\":\"sadness\"}。"
+            + "preset 只能取 sadness、anger、calm、baseline 之一：sadness 表示低落、想哭、孤独正在发生；"
+            + "anger 表示此刻正激动、紧绷、想爆发，已经过去的愤怒算 baseline；calm 表示情绪明显平复、放松下来；"
+            + "baseline 表示中性、轻微、混合或拿不准，一律选 baseline。"
+            + "注意否定与好转的表达，例如“我恨过他，现在好多了”应判 calm。宁可保守，不要过度判断。";
+        var context = new List<Message> { new Message("system", rules) };
+        int take = Math.Min(6, history.Count);
+        if (take > 0) context.AddRange(history.GetRange(history.Count - take, take));
+        // A trailing assistant message makes chat APIs continue it silently; ask explicitly.
+        context.Add(new Message("user", "请根据以上对话判断访客当前的主导情绪，只输出规定格式的一行 JSON。"));
+        var body = JsonUtility.ToJson(new Payload { model = config.model, messages = context.ToArray() });
+        string raw = await Complete(body, active);
+        int open = raw.IndexOf('{'), close = raw.LastIndexOf('}');
+        return open >= 0 && close > open ? raw.Substring(open, close - open + 1) : "";
+    }
+
     void Remember(Message user, string answer)
     {
         history.Add(user);

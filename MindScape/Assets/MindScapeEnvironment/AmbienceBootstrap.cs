@@ -24,6 +24,7 @@ namespace MindScape.Environment
             var sun = GameObject.Find("Directional Light");
             if (sun != null && sun.TryGetComponent<Light>(out var light) && !targets.Contains(light)) targets.Add(light);
             controller.lights = targets.ToArray();
+            controller.sadnessIntroSound = Resources.Load<AudioClip>("MindScapeAmbience/SadPiano");
             controller.sadnessSound = Resources.Load<AudioClip>("MindScapeAmbience/SoftRain");
             controller.angerSound = Resources.Load<AudioClip>("MindScapeAmbience/QuietStream");
             controller.calmSound = Resources.Load<AudioClip>("MindScapeAmbience/GentleAir");

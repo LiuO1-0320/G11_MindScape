@@ -55,7 +55,7 @@ namespace MindScape.Environment
             panel.gameObject.AddComponent<Image>().color = new Color(.97f, .94f, .85f, .98f);
             Label(panel, "MODE B  /  AMBIENCE", 20, 10, 640, 42, 28);
             Label(panel, "Comfort preferences, not diagnosis or treatment", 20, 58, 640, 35, 19);
-            MakeButton(panel, "Sadness / soft rain", 20, 108, () => controller.ApplyManual("sadness"));
+            MakeButton(panel, "Sadness / piano then rain", 20, 108, () => controller.ApplyManual("sadness"));
             MakeButton(panel, "Anger / quiet stream", 350, 108, () => controller.ApplyManual("anger"));
             MakeButton(panel, "Calm / gentle air", 20, 176, () => controller.ApplyManual("calm"));
             MakeButton(panel, "Mute / unmute", 350, 176, () => controller.SetMuted(!controller.Muted));
@@ -95,7 +95,9 @@ namespace MindScape.Environment
             foreach (var button in acceptButtons) button.interactable = displayedRequest.Length > 0;
             string value = "Current target: " + controller.CurrentPreset + "   Pending: " + controller.PendingPreset
                 + "\n" + (controller.IsTransitioning ? "Transitioning (2.5 seconds)" : "Ready")
-                + (controller.Muted ? "   Sound muted" : "") + "\nManual presets are not LLM decisions.";
+                + (controller.Muted ? "   Sound muted" : "")
+                + (controller.SadnessIntroActive ? "\nSadness music: empathy now, nature sounds later" : "")
+                + "\nManual presets are not LLM decisions.";
             foreach (var text in statuses) text.text = value;
         }
         void Update() { if (Time.unscaledTime < nextRefresh) return; nextRefresh = Time.unscaledTime + .1f; Refresh(); }

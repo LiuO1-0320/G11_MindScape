@@ -23,6 +23,7 @@ public sealed class AmbiencePlayModeTests
         lamp = new GameObject("Test lamp").AddComponent<Light>(); lamp.transform.SetParent(root.transform);
         lamp.intensity = 2; lamp.color = Color.white;
         controller = root.AddComponent<AmbienceController>(); controller.lights = new[] { lamp };
+        controller.sadnessIntroSound = Resources.Load<AudioClip>("MindScapeAmbience/SadPiano");
         controller.sadnessSound = Resources.Load<AudioClip>("MindScapeAmbience/SoftRain");
         controller.angerSound = Resources.Load<AudioClip>("MindScapeAmbience/QuietStream");
         controller.calmSound = Resources.Load<AudioClip>("MindScapeAmbience/GentleAir");
@@ -40,7 +41,7 @@ public sealed class AmbiencePlayModeTests
         yield return null;
         Assert.That(lamp.intensity, Is.GreaterThan(1.44f), "No instant dimming.");
         yield return new WaitForSecondsRealtime(2.7f);
-        Assert.That(lamp.intensity, Is.EqualTo(1.44f).Within(.001f));
+        Assert.That(lamp.intensity, Is.InRange(1.44f * .95f, 1.44f * 1.05f), "Settled sadness brightness left the breathing band.");
         Assert.IsFalse(controller.IsTransitioning);
         var state = JsonUtility.FromJson<AmbienceController.State>(controller.GetStateJson());
         Assert.AreEqual("sadness", state.completedPreset); Assert.AreEqual("llm-confirmed", state.source);
@@ -49,7 +50,7 @@ public sealed class AmbiencePlayModeTests
     [UnityTest] public IEnumerator RapidSwitchRetainsAudioAndFinishesLatestTarget()
     {
         controller.ApplyManual("sadness"); yield return new WaitForSecondsRealtime(.5f);
-        var voices = controller.GetComponents<AudioSource>(); Assert.AreEqual(3, voices.Length);
+        var voices = controller.GetComponents<AudioSource>(); Assert.AreEqual(4, voices.Length);
         float before = voices[0].volume;
         controller.ApplyManual("anger"); controller.ApplyManual("calm");
         Assert.AreEqual(before, voices[0].volume, "Switching may not truncate a playing source.");
@@ -57,7 +58,7 @@ public sealed class AmbiencePlayModeTests
         Assert.AreEqual("calm", controller.CurrentPreset);
         Assert.That(lamp.intensity, Is.EqualTo(2).Within(.001f));
         Assert.That(voices[0].volume, Is.EqualTo(0)); Assert.That(voices[1].volume, Is.EqualTo(0));
-        Assert.That(voices[2].volume, Is.EqualTo(.12f).Within(.001f));
+        Assert.That(voices[2].volume, Is.EqualTo(0)); Assert.That(voices[3].volume, Is.EqualTo(.12f).Within(.001f));
     }
     [Test] public void PreferencesAndDisableStayConsistent()
     {
@@ -104,6 +105,56 @@ public sealed class AmbiencePlayModeTests
         controller.ProposePreset("anger", "fixture-panel"); yield return new WaitForSecondsRealtime(.2f);
         Assert.IsTrue(accept.interactable); ExecuteEvents.Execute(accept.gameObject, pointer, ExecuteEvents.pointerClickHandler);
         Assert.AreEqual("anger", controller.CurrentPreset);
+    }
+    [Test] public void EmotionDecisionDebouncesAndNeverRepeatsTheCurrentPreset()
+    {
+        var decision = new EmotionDecision();
+        Assert.IsNull(decision.Consume("baseline", "baseline"), "Neutral turns must never propose.");
+        Assert.IsNull(decision.Consume("bored", "baseline"), "Unknown labels must never propose.");
+        Assert.IsNull(decision.Consume("sadness", "baseline"), "A single turn is not enough.");
+        Assert.IsNull(decision.Consume("anger", "baseline"), "Switching emotions resets the streak.");
+        Assert.IsNull(decision.Consume("anger", "anger"), "The active preset is never re-proposed.");
+        Assert.IsNull(decision.Consume("anger", "baseline"), "The streak restarts after matching the active preset.");
+        Assert.AreEqual("anger", decision.Consume("anger", "baseline"), "Two consecutive turns should propose.");
+        Assert.IsNull(decision.Consume("sadness", "baseline"), "The streak restarts after a proposal.");
+        Assert.AreEqual("sadness", decision.Consume("sadness", "baseline"), "A renewed two-turn streak proposes again.");
+        Assert.AreEqual("anger", decision.Consume("anger", "sadness"), "A switch away from an active preset is proposed at once.");
+        Assert.IsNull(decision.Consume("anger", "anger"), "The active preset is never re-proposed.");
+        Assert.AreEqual("calm", decision.Consume("calm", "anger"), "Recovery to calm is also proposed at once.");
+    }
+    [UnityTest] public IEnumerator SadnessBreathesWhileAngerStaysPerfectlyStill()
+    {
+        controller.ApplyManual("sadness"); yield return new WaitForSecondsRealtime(2.7f);
+        Assert.That(lamp.intensity, Is.InRange(1.44f * .95f, 1.44f * 1.05f), "Breathing left the sadness band.");
+        float earlier = lamp.intensity;
+        yield return new WaitForSecondsRealtime(2f);
+        Assert.That(Mathf.Abs(lamp.intensity - earlier), Is.GreaterThan(.02f), "Sadness lighting must keep breathing.");
+        Assert.That(lamp.intensity, Is.InRange(1.44f * .95f, 1.44f * 1.05f));
+        controller.ApplyManual("anger"); yield return new WaitForSecondsRealtime(2.7f);
+        float steady = lamp.intensity;
+        yield return new WaitForSecondsRealtime(2f);
+        Assert.AreEqual(steady, lamp.intensity, "Anger lighting must be perfectly stable.");
+        Assert.That(lamp.intensity, Is.EqualTo(1.24f).Within(.001f));
+    }
+    [UnityTest] public IEnumerator SadnessCrossfadesFromEmpathyMusicToNatureSounds()
+    {
+        if (controller.sadnessIntroSound == null) Assert.Ignore("SadPiano clip not imported yet; two-phase check skipped.");
+        controller.sadnessIntroSeconds = .5f;
+        controller.ApplyManual("sadness");
+        yield return new WaitForSecondsRealtime(2.7f);
+        var voices = controller.GetComponents<AudioSource>();
+        Assert.AreEqual(4, voices.Length);
+        Assert.That(voices[0].volume, Is.EqualTo(.12f).Within(.001f), "The empathy clip should be audible first.");
+        Assert.That(voices[1].volume, Is.EqualTo(0), "The nature clip must wait for the second phase.");
+        yield return new WaitForSecondsRealtime(3.8f);
+        Assert.That(voices[0].volume, Is.EqualTo(0), "The empathy clip must fade out.");
+        Assert.IsFalse(voices[0].isPlaying);
+        Assert.That(voices[1].volume, Is.EqualTo(.12f).Within(.001f), "The nature clip must take over.");
+        var state = JsonUtility.FromJson<AmbienceController.State>(controller.GetStateJson());
+        Assert.AreEqual(1, state.sadnessPhase);
+        controller.SetBrightness(controller.Brightness - .1f); yield return new WaitForSecondsRealtime(2.7f);
+        Assert.That(voices[1].volume, Is.EqualTo(.12f).Within(.001f), "Brightness feedback must not restart the intro phase.");
+        Assert.That(voices[0].volume, Is.EqualTo(0));
     }
 
 #if UNITY_EDITOR
