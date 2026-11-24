@@ -86,6 +86,11 @@ public sealed class AmbiencePlayModeTests
     [UnityTest] public IEnumerator DesktopPanelButtonsOperateTheController()
     {
         var panel = root.AddComponent<AmbiencePanel>(); panel.Bind(controller); yield return null;
+        var desktop = root.transform.Find("Ambience Desktop Controls");
+        var sheet = desktop.Find("Control sheet").gameObject;
+        Assert.IsFalse(sheet.activeSelf, "The opening view must be clear of the settings panel.");
+        desktop.Find("Ambience").GetComponent<Button>().onClick.Invoke();
+        Assert.IsTrue(sheet.activeSelf);
         var buttons = root.GetComponentsInChildren<Button>(true);
         Button calm = null, accept = null;
         foreach (var button in buttons)

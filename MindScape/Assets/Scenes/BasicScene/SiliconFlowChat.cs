@@ -39,6 +39,13 @@ internal class SiliconFlowChat
         if (settings == null) return;
         try { config = JsonUtility.FromJson<Config>(settings.text); }
         catch (ArgumentException) { Debug.LogWarning("Invalid SiliconFlow configuration."); }
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+        if (config != null && string.IsNullOrWhiteSpace(config.apiKey)
+            && Uri.TryCreate(config.endpoint, UriKind.Absolute, out var endpoint)
+            && endpoint.Scheme == Uri.UriSchemeHttps && endpoint.IsDefaultPort
+            && string.Equals(endpoint.Host, "api.siliconflow.cn", StringComparison.OrdinalIgnoreCase))
+            config.apiKey = Environment.GetEnvironmentVariable("MINDSCAPE_SILICONFLOW_API_KEY", EnvironmentVariableTarget.User);
+#endif
     }
 
     public async Task<string> TranscribeRecording(float[] samples, int rate, int channels, Func<bool> active)

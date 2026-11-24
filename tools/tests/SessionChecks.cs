@@ -18,9 +18,9 @@ public static class SessionChecks
         Check(!s.Manual("baseline") && s.Preset == "sadness", "Unknown manual preset cannot mutate state");
         s.Propose("anger", "turn3"); s.Reject(); Check(!s.Confirm("turn3") && s.Preset == "sadness", "Reject proposal");
         Check(!s.SetBrightness(float.NaN) && !s.SetBrightness(float.PositiveInfinity), "Reject nonfinite brightness");
-        Check(s.SetBrightness(99) && s.Brightness == 1.25f, "Brightness upper bound");
-        s.Manual("anger"); Check(s.Brightness == 1.25f, "Preserve manual brightness across AI presets");
-        s.SetBrightness(-99); Check(s.Brightness == .45f, "Brightness lower bound");
+        Check(s.SetBrightness(99) && s.Brightness == 1.8f, "Brightness upper bound");
+        s.Manual("anger"); Check(s.Brightness == 1.8f, "Preserve manual brightness across AI presets");
+        s.SetBrightness(-99); Check(s.Brightness == .35f, "Brightness lower bound");
         s.Propose("calm", "turn4"); s.SetBrightness(1.15f); Check(s.PendingId == "", "Feedback invalidates stale suggestion");
         s.SetMuted(true); s.Manual("calm"); Check(s.Muted, "Preserve mute");
         Check(!s.SetSoundLevel(float.NaN), "Reject invalid volume");

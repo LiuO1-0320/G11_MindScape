@@ -28,6 +28,7 @@ namespace MindScape.Environment
             controller.sadnessSound = Resources.Load<AudioClip>("MindScapeAmbience/SoftRain");
             controller.angerSound = Resources.Load<AudioClip>("MindScapeAmbience/QuietStream");
             controller.calmSound = Resources.Load<AudioClip>("MindScapeAmbience/GentleAir");
+            controller.AdjustRoomAmbient = true;
             controller.Initialize();
             root.AddComponent<AmbienceCommandBridge>().Bind(controller);
             root.AddComponent<AmbiencePanel>().Bind(controller);

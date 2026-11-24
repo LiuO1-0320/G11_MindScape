@@ -8,6 +8,7 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 public class SandTrayScanner : MonoBehaviour
 {
     [SerializeField] BoxCollider sand;
+    public BoxCollider SandSurface => sand;
     [SerializeField] AudioClip introduction, emptyTray;
     Camera photoCamera;
     Font font;
@@ -27,33 +28,52 @@ public class SandTrayScanner : MonoBehaviour
         photoCamera.nearClipPlane = .8f * transform.lossyScale.y;
         photoCamera.farClipPlane = 1.48f * transform.lossyScale.y;
 
-        var canvas = new GameObject("识别沙盘", typeof(RectTransform), typeof(Canvas),
+        font = Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "Noto Sans CJK SC", "Droid Sans Fallback", "Arial" }, 36);
+        var rig = Camera.main ? Camera.main.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() : null;
+        if (rig && !rig.GetComponent<RoomBodyCollision>()) rig.gameObject.AddComponent<RoomBodyCollision>();
+        var tour = gameObject.AddComponent<SandTrayTour>();
+        AddButton("识别沙盘", .53f, Recognize);
+        AddButton("游览沙盘", .21f, () => tour.Enter(sand, font));
+        AddButton("重置沙盘", -.53f, ResetTray);
+        photoCamera.cullingMask &= ~(1 << 5);
+    }
+
+    void AddButton(string title, float x, UnityEngine.Events.UnityAction click)
+    {
+        var canvas = new GameObject(title, typeof(RectTransform), typeof(Canvas),
             typeof(TrackedDeviceGraphicRaycaster)).GetComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = Camera.main;
         var rect = (RectTransform)canvas.transform;
         rect.SetParent(transform, false);
-        rect.localPosition = new Vector3(.53f, .16f, -.475f);
+        rect.localPosition = new Vector3(x, .16f, -.475f);
         rect.localRotation = Quaternion.Euler(55, 0, 0);
         rect.localScale = Vector3.one * .0013f;
         rect.sizeDelta = new Vector2(210, 72);
         var background = canvas.gameObject.AddComponent<Image>();
         background.color = new Color32(255, 207, 91, 255);
-        var button = canvas.gameObject.AddComponent<Button>();
+        var button = canvas.gameObject.AddComponent<TrayActionButton>();
         button.targetGraphic = background;
-        button.onClick.AddListener(Recognize);
+        button.onClick.AddListener(click);
         var label = new GameObject("Label", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
         label.rectTransform.SetParent(rect, false);
         label.rectTransform.sizeDelta = rect.sizeDelta;
-        font = Font.CreateDynamicFontFromOSFont(new[] { "Microsoft YaHei", "Noto Sans CJK SC", "Droid Sans Fallback", "Arial" }, 36);
         label.font = font;
         label.fontSize = 34;
         label.alignment = TextAnchor.MiddleCenter;
         label.color = new Color32(73, 47, 21, 255);
         label.raycastTarget = false;
-        label.text = "识别沙盘";
-        photoCamera.cullingMask &= ~(1 << 5);
+        label.text = title;
+        canvas.gameObject.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 2f;
+        button.SetLabel(label);
         canvas.gameObject.layer = label.gameObject.layer = 5;
+    }
+
+    void ResetTray()
+    {
+        foreach (var piece in FindObjectsOfType<SandPiece>())
+            if (piece.gameObject.scene == gameObject.scene) piece.ReturnToShelf();
+        Physics.SyncTransforms();
     }
 
     void Recognize()

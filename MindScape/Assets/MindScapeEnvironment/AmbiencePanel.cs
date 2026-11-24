@@ -37,8 +37,19 @@ namespace MindScape.Environment
             var sheet = new GameObject("Control sheet", typeof(RectTransform)).GetComponent<RectTransform>();
             sheet.SetParent(desktop.transform, false);
             sheet.anchorMin = sheet.anchorMax = sheet.pivot = new Vector2(1, 1);
-            sheet.anchoredPosition = new Vector2(-16, -16); sheet.localScale = Vector3.one * .8f;
+            sheet.anchoredPosition = new Vector2(-16, -60); sheet.localScale = Vector3.one * .8f;
             sheet.sizeDelta = new Vector2(680, 620); Layout(sheet);
+            sheet.gameObject.SetActive(false);
+            var toggle = MakeButton(desktop, "Ambience", 0, 0, () => sheet.gameObject.SetActive(!sheet.gameObject.activeSelf));
+            var tab = (RectTransform)toggle.transform;
+            tab.anchorMin = tab.anchorMax = tab.pivot = Vector2.one;
+            tab.anchoredPosition = new Vector2(-16, -12);
+            tab.sizeDelta = new Vector2(130, 40);
+            var caption = toggle.GetComponentInChildren<Text>();
+            caption.rectTransform.anchorMin = Vector2.zero;
+            caption.rectTransform.anchorMax = Vector2.one;
+            caption.rectTransform.offsetMin = caption.rectTransform.offsetMax = Vector2.zero;
+            caption.alignment = TextAnchor.MiddleCenter;
             Refresh();
         }
         RectTransform CreateCanvas(string name, RenderMode mode)
@@ -59,8 +70,8 @@ namespace MindScape.Environment
             MakeButton(panel, "Anger / quiet stream", 350, 108, () => controller.ApplyManual("anger"));
             MakeButton(panel, "Calm / gentle air", 20, 176, () => controller.ApplyManual("calm"));
             MakeButton(panel, "Mute / unmute", 350, 176, () => controller.SetMuted(!controller.Muted));
-            MakeButton(panel, "Brighter", 20, 244, () => controller.SetBrightness(controller.Brightness + .15f));
-            MakeButton(panel, "Dimmer", 350, 244, () => controller.SetBrightness(controller.Brightness - .15f));
+            MakeButton(panel, "Brighter", 20, 244, () => controller.SetBrightness(controller.Brightness + .4f));
+            MakeButton(panel, "Dimmer", 350, 244, () => controller.SetBrightness(controller.Brightness - .4f));
             MakeButton(panel, "Sound softer", 20, 312, () => controller.SetSoundLevel(controller.SoundLevel - .2f));
             MakeButton(panel, "Sound louder", 350, 312, () => controller.SetSoundLevel(controller.SoundLevel + .2f));
             acceptButtons.Add(MakeButton(panel, "Accept AI proposal", 20, 380, () => controller.ConfirmProposal(displayedRequest)));
@@ -93,7 +104,7 @@ namespace MindScape.Environment
             if (desktopCanvas != null) desktopCanvas.SetActive(!XRSettings.isDeviceActive);
             displayedRequest = controller.PendingRequestId;
             foreach (var button in acceptButtons) button.interactable = displayedRequest.Length > 0;
-            string value = "Current target: " + controller.CurrentPreset + "   Pending: " + controller.PendingPreset
+            string value = "Brightness: " + Mathf.RoundToInt(controller.Brightness * 100f) + "%   " + controller.CurrentPreset + "   Pending: " + controller.PendingPreset
                 + "\n" + (controller.IsTransitioning ? "Transitioning (2.5 seconds)" : "Ready")
                 + (controller.Muted ? "   Sound muted" : "")
                 + (controller.SadnessIntroActive ? "\nSadness music: empathy now, nature sounds later" : "")

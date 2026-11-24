@@ -10,6 +10,11 @@ public class RoomDimmer : XRSimpleInteractable
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
         base.OnSelectEntered(args);
+        CycleBrightness();
+    }
+
+    public void CycleBrightness()
+    {
         var ambience = MindScape.Environment.AmbienceController.Instance;
         if (ambience != null && ambience.isActiveAndEnabled)
         {

@@ -42,7 +42,7 @@ namespace MindScape.Environment
         public bool SetBrightness(float value)
         {
             if (float.IsNaN(value) || float.IsInfinity(value)) return false;
-            Brightness = Math.Max(.45f, Math.Min(1.25f, value));
+            Brightness = Math.Max(.35f, Math.Min(1.8f, value));
             BrightnessOverridden = true; UserChange(); return true;
         }
         public bool SetSoundLevel(float value)

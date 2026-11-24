@@ -43,6 +43,9 @@ namespace MindScape.Environment
         Color[] baselineColor, fromColor, targetColor;
         float started, settledAt, introSince = -1, audioStarted;
         bool moving, initialized, breathing, audioMoving;
+        public bool AdjustRoomAmbient { get; set; }
+        Color sky, equator, ground;
+        float ambientScale = 1f, fromAmbientScale;
         int sadnessPhase;
         string completedPreset = "baseline";
         public static bool IsPreset(string id) => AmbienceSession.IsPreset(id);
@@ -59,6 +62,12 @@ namespace MindScape.Environment
         public void Initialize()
         {
             if (initialized) return;
+            if (AdjustRoomAmbient && gameObject.scene == UnityEngine.SceneManagement.SceneManager.GetActiveScene())
+            {
+                sky = RenderSettings.ambientSkyColor;
+                equator = RenderSettings.ambientEquatorColor;
+                ground = RenderSettings.ambientGroundColor;
+            }
             if (lights == null) lights = new Light[0];
             baselineIntensity = new float[lights.Length]; baselineColor = new Color[lights.Length];
             baselineTemperature = new float[lights.Length]; baselineUseTemperature = new bool[lights.Length];
@@ -145,6 +154,7 @@ namespace MindScape.Environment
                 toVolume[i] = i == selected && voice.clip != null ? session.Volume : 0;
                 if (toVolume[i] > 0 && !voice.isPlaying) voice.Play();
             }
+            fromAmbientScale = ambientScale;
             started = Time.unscaledTime; moving = true;
         }
         void Update()
@@ -167,6 +177,8 @@ namespace MindScape.Environment
                 lights[i].intensity = Mathf.Lerp(fromIntensity[i], targetIntensity[i], eased);
                 lights[i].color = Color.Lerp(fromColor[i], targetColor[i], eased);
             }
+            if (AdjustRoomAmbient && gameObject.scene == UnityEngine.SceneManagement.SceneManager.GetActiveScene())
+                SetRoomAmbient(Mathf.Lerp(fromAmbientScale, session.BrightnessOverridden ? session.Brightness : 1f, eased));
             for (int i = 0; i < voices.Length; i++) voices[i].volume = Mathf.Lerp(fromVolume[i], toVolume[i], eased);
             if (t < 1) return;
             moving = false; completedPreset = session.Preset;
@@ -176,6 +188,15 @@ namespace MindScape.Environment
             if (breathing && sadnessPhase == 0 && introSince < 0) introSince = Time.unscaledTime;
             Trace("transition-complete");
         }
+        void SetRoomAmbient(float scale)
+        {
+            if (scale == ambientScale) return;
+            ambientScale = scale;
+            RenderSettings.ambientSkyColor = new Color(sky.r * scale, sky.g * scale, sky.b * scale, sky.a);
+            RenderSettings.ambientEquatorColor = new Color(equator.r * scale, equator.g * scale, equator.b * scale, equator.a);
+            RenderSettings.ambientGroundColor = new Color(ground.r * scale, ground.g * scale, ground.b * scale, ground.a);
+        }
+
         void StartIntroCrossfade()
         {
             sadnessPhase = 1; introSince = 0;
@@ -242,6 +263,7 @@ namespace MindScape.Environment
             moving = false; audioMoving = false; breathing = false; introSince = -1; sadnessPhase = 0;
             foreach (var voice in voices) { voice.Stop(); voice.volume = 0; }
             for (int i = 0; i < lights.Length; i++) if (lights[i] != null) lights[i].intensity = baselineIntensity[i];
+            if (AdjustRoomAmbient && gameObject.scene == UnityEngine.SceneManagement.SceneManager.GetActiveScene()) SetRoomAmbient(1f);
             RestoreColorSettings(); session.Restore("disabled"); completedPreset = "baseline";
             Trace("disabled");
         }

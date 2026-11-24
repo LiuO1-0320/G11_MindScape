@@ -8,6 +8,7 @@ using UnityEngine.XR.Interaction.Toolkit.Locomotion;
 public class RoomSeat : XRSimpleInteractable
 {
     static RoomSeat occupied;
+    public bool IsOccupied => occupied == this;
     readonly List<LocomotionProvider> paused = new List<LocomotionProvider>();
     XROrigin rig;
     CharacterController controller;
@@ -17,9 +18,14 @@ public class RoomSeat : XRSimpleInteractable
     protected override void OnSelectEntered(SelectEnterEventArgs args)
     {
         base.OnSelectEntered(args);
+        ToggleSeat(args.interactorObject.transform.GetComponentInParent<XROrigin>());
+    }
+
+    public void ToggleSeat(XROrigin player)
+    {
         if (occupied == this) { Stand(); return; }
         if (occupied != null) occupied.Stand();
-        rig = args.interactorObject.transform.GetComponentInParent<XROrigin>();
+        rig = player;
         if (rig == null || rig.Camera == null) return;
         occupied = this;
         previousEye = rig.Camera.transform.position;
@@ -35,6 +41,12 @@ public class RoomSeat : XRSimpleInteractable
         else controller = null;
         rig.MatchOriginUpCameraForward(Vector3.up, transform.forward);
         rig.MoveCameraToWorldLocation(transform.TransformPoint(0, 1.19f, 0.04f));
+        rig.GetComponent<RoomBodyCollision>()?.ResetPose();
+    }
+
+    public static void StandIfOccupied(XROrigin player)
+    {
+        if (occupied != null && occupied.rig == player) occupied.Stand();
     }
 
     void Stand()
@@ -43,6 +55,7 @@ public class RoomSeat : XRSimpleInteractable
         {
             rig.Origin.transform.rotation = previousRotation;
             rig.MoveCameraToWorldLocation(previousEye);
+            rig.GetComponent<RoomBodyCollision>()?.ResetPose();
         }
         if (controller != null) controller.enabled = true;
         foreach (var provider in paused)

@@ -90,7 +90,7 @@ MeshRenderer:
   m_ReceiveShadows: 1
   m_RenderingLayerMask: 1
   m_Materials:
-  - {fileID: 2100000, guid: 58fb4862845409be31a8400fe1f70bd9, type: 2}
+  - {fileID: 2100000, guid: c1ffdcb6c63a4e4392579e5c3b1da1ab, type: 2}
 --- !u!65 &204
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -150,7 +150,7 @@ MeshRenderer:
   m_ReceiveShadows: 1
   m_RenderingLayerMask: 1
   m_Materials:
-  - {fileID: 2100000, guid: 58fb4862845409be31a8400fe1f70bd9, type: 2}
+  - {fileID: 2100000, guid: c1ffdcb6c63a4e4392579e5c3b1da1ab, type: 2}
 --- !u!65 &214
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -211,7 +211,7 @@ MeshRenderer:
   m_ReceiveShadows: 1
   m_RenderingLayerMask: 1
   m_Materials:
-  - {fileID: 2100000, guid: b6dce273834191aac90832a2e76e421d, type: 2}
+  - {fileID: 2100000, guid: f0346258d14f4b079adc457562877870, type: 2}
 --- !u!65 &224
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -233,8 +233,8 @@ Light:
   serializedVersion: 10
   m_Type: 2
   m_Color: {r: 1, g: 0.86, b: 0.68, a: 1}
-  m_Intensity: 3
-  m_Range: 9
+  m_Intensity: 0.85
+  m_Range: 2.4
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4294967295
