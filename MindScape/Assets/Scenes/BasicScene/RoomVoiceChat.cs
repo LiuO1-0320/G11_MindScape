@@ -36,6 +36,7 @@ public class RoomVoiceChat : MonoBehaviour
     Sprite rounded;
     Font font;
     RectTransform panel;
+    Image paper;
     Text mode, status, action;
     AudioSource speaker;
     AudioClip recording;
@@ -63,11 +64,12 @@ public class RoomVoiceChat : MonoBehaviour
         var canvas = canvasObject.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = Camera.main;
-        var paper = panel.gameObject.AddComponent<Image>();
-        paper.sprite = rounded;
-        paper.type = Image.Type.Sliced;
-        paper.color = new Color32(255, 243, 207, 255);
-        paper.raycastTarget = false;
+        var paperImage = panel.gameObject.AddComponent<Image>();
+        paperImage.sprite = rounded;
+        paperImage.type = Image.Type.Sliced;
+        paperImage.color = PaperBaseline;
+        paperImage.raycastTarget = false;
+        paper = paperImage;
         Label(panel, "小葵  /  会话", 18, 18, 272, 56, 30).fontStyle = FontStyle.Bold;
         mode = ButtonAt("本地模式 ⇄", 296, 18, 166, 56, SwitchMode);
         status = Label(panel, "", 18, 78, 444, 68, 21);
@@ -197,10 +199,32 @@ public class RoomVoiceChat : MonoBehaviour
 
     void Update()
     {
+        FadePaperToMood();
         if (recording == null) return;
         float seconds = Time.realtimeSinceStartup - started;
         status.text = $"正在录音  {Mathf.FloorToInt(seconds)} / {MaxSeconds} 秒";
         if (seconds >= MaxSeconds) FinishRecording();
+    }
+
+    // The conversation paper follows the ambience preset at the same 2.5s pace as the
+    // room: white while sad, light gray while angry, back to warm cream when recovered.
+    static readonly Color32 PaperBaseline = new Color32(255, 243, 207, 255);
+    static readonly Color32 PaperSadness = new Color32(255, 255, 255, 255);
+    static readonly Color32 PaperAnger = new Color32(211, 211, 211, 255);
+    void FadePaperToMood()
+    {
+        if (paper == null) return;
+        var ambience = MindScape.Environment.AmbienceController.Instance;
+        if (ambience == null) return;
+        var preset = ambience.CurrentPreset;
+        var target = preset == "sadness" ? PaperSadness
+            : preset == "anger" ? PaperAnger : PaperBaseline;
+        float step = Time.deltaTime / 2.5f;
+        paper.color = new Color32(
+            (byte)Mathf.MoveTowards(((Color32)paper.color).r, target.r, step * 255f),
+            (byte)Mathf.MoveTowards(((Color32)paper.color).g, target.g, step * 255f),
+            (byte)Mathf.MoveTowards(((Color32)paper.color).b, target.b, step * 255f),
+            (byte)Mathf.MoveTowards(((Color32)paper.color).a, target.a, step * 255f));
     }
 
     void FinishRecording()

@@ -14,7 +14,8 @@ namespace MindScape.Environment
         public float SoundLevel { get; private set; } = 1;
         public bool Muted { get; private set; }
         public bool BrightnessOverridden { get; private set; }
-        public float Kelvin => Preset == "sadness" ? 2900 : Preset == "anger" ? 3500 : Preset == "calm" ? 3300 : 0;
+        // Warm white for sadness (dimmed further in Select), cold white for anger.
+        public float Kelvin => Preset == "sadness" ? 3300 : Preset == "anger" ? 6500 : Preset == "calm" ? 3300 : 0;
         public float Volume => (Preset == "baseline" ? 0 : Preset == "anger" ? .09f : .12f) * SoundLevel;
         public static bool IsPreset(string id) => id == "sadness" || id == "anger" || id == "calm";
         public bool Propose(string id, string request)
@@ -35,7 +36,7 @@ namespace MindScape.Environment
         void Select(string id, string request, string source)
         {
             Preset = id; RequestId = request; Source = source;
-            if (!BrightnessOverridden) Brightness = id == "sadness" ? .72f : id == "anger" ? .62f : 1;
+            if (!BrightnessOverridden) Brightness = id == "sadness" ? .6f : id == "anger" ? .62f : 1;
             Reject();
         }
         public void Reject() { PendingPreset = PendingId = ""; }
