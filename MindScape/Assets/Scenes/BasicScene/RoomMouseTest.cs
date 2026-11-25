@@ -139,7 +139,7 @@ public class RoomMouseTest : MonoBehaviour
     void OnGUI()
     {
         if (selected != null)
-            GUI.Box(new Rect(12, 12, 320, 30), selected.displayName + "  ·  点击沙面放置，Esc 取消");
+            GUI.Box(new Rect(12, 12, 320, 30), selected.LocalizedName + MindScape.Environment.RoomLanguage.Pick("  ·  点击沙面放置，Esc 取消", "  ·  Click sand to place, Esc to cancel"));
     }
 }
 #endif

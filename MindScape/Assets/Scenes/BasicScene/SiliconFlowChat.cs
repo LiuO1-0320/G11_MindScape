@@ -1,3 +1,4 @@
+using static MindScape.Environment.RoomLanguage;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,6 +29,8 @@ internal class SiliconFlowChat
     [Serializable] class Choice { public Message message; }
     [Serializable] class Response { public Choice[] choices; }
     [Serializable] class Transcript { public string text; }
+    [Serializable] sealed class EmotionResult { public string action, preset; }
+    public string CurrentEmotion { get; private set; }
     readonly Config config;
     readonly List<Message> history = new List<Message>();
     public bool Ready => config != null && Uri.TryCreate(config.endpoint, UriKind.Absolute, out var url)
@@ -69,7 +72,7 @@ internal class SiliconFlowChat
             }
             if (!active()) throw new OperationCanceledException();
             if (req.result != UnityWebRequest.Result.Success)
-                throw new InvalidOperationException($"云端转写失败（{req.responseCode}），仍可回听。");
+                throw new InvalidOperationException(Pick($"云端转写失败（{req.responseCode}），仍可回听。", $"Transcription failed ({req.responseCode}). Replay is available."));
             return JsonUtility.FromJson<Transcript>(req.downloadHandler.text)?.text?.Trim();
         }
     }
@@ -98,13 +101,35 @@ internal class SiliconFlowChat
         }
     }
 
+    static string LocaleContext => Pick("当前界面语言为简体中文（zh-CN）。", "Current interface language is English (en). ");
+    static string ReplyLanguage => LocaleContext + Pick("面向用户的回复请使用简体中文，即使对话历史使用其他语言。", "Write user-facing replies in English, even if earlier messages or item names use another language.");
+
+    static string RoomFeatures => Pick(
+        "咨询室操作指南，仅在访客询问或与当前需要直接相关时，简短说明下一步。"
+        + "玩家可抓取和摆放沙具，点「识别沙盘」将照片和沙具清单发到对话中供你讨论，点「游览沙盘」进入作品，点「退出游览」返回，点「重置沙盘」将沙具送回架上。"
+        + "环境面板可以手动选择「低落 / 钢琴与雨声」「紧张 / 溪流」「平静 / 微风」，也可调亮、调暗、调音量、静音或恢复原状。"
+        + "有待确认的环境建议时，对话框会提示玩家到环境面板选择「接受 AI 建议」或「保持当前设置」。"
+        + "这些操作由玩家完成。仅凭聊天文字不能查看沙盘或操作房间，不要声称已执行操作或已有待确认建议。",
+        "Room guide. Give a brief next step only when asked or directly relevant. "
+        + "Players can place pieces, use Scan tray to add a photo and inventory for discussion, Enter tray to explore, Exit tour to return, or Reset tray to send pieces back to the shelf. "
+        + "On the Ambience panel, players can select Sadness / piano then rain, Anger / quiet stream, or Calm / gentle air. They can adjust brightness and volume, mute sound, or select Restore original. "
+        + "When an ambience proposal is pending, a chat notice directs the player to Accept AI proposal or Keep current on that panel. "
+        + "The player operates these controls. Chat text alone cannot inspect the tray or change the room. Do not claim an action was performed or a proposal is pending.");
+
     public async Task<string> Reply(string text, Func<bool> active)
     {
         var user = new Message("user", text);
+        string observation = await ClassifyEmotion(user, active);
+        if (!active()) throw new OperationCanceledException();
+        CurrentEmotion = observation;
+        string emotionContext = observation == null
+            ? "本轮没有可用的情绪观察，请直接根据访客的话回应。"
+            : "本轮情绪观察（暂定）：" + observation
+                + "。baseline 表示中性或不确定。仅据此调整语气，以访客原话和自我描述为准，不直接宣告标签，不作诊断。";
         const string rolePrompt = "你现在扮演一名心理疏导师。像面对面聊天一样，用自然、温和的口吻接住对方刚说的话。"
             + "每次回复尽量不超过200词，能用一两句话说清楚时就简短回应。"
             + "直接用连贯的句子交流，不列清单，不加编号、标题或 Markdown 格式。标点只用逗号和句号。";
-        var context = new List<Message> { new Message("system", rolePrompt) };
+        var context = new List<Message> { new Message("system", rolePrompt + "\n" + emotionContext + "\n" + RoomFeatures + "\n" + ReplyLanguage) };
         context.AddRange(history);
         context.Add(user);
         var body = JsonUtility.ToJson(new Payload { model = config.model, messages = context.ToArray() });
@@ -118,7 +143,7 @@ internal class SiliconFlowChat
         var instruction = new VisionText {
             text = "这个是沙盘的图片和上面的东西，你可以作为一个心理咨询师分析一下这个吗？\n沙具清单：" + inventory
                 + "\n请结合图中看得见的位置、距离和组合来谈，分清观察和猜想，不凭摆法判断心理状态或诊断。"
-                + "像小葵在和对方聊天一样，用简短的自然句，尽量不超过200词，不列点，只用逗号和句号。"
+                + "像小葵在和对方聊天一样，用简短的自然句，尽量不超过200词，不列点，只用逗号和句号。" + "\n" + RoomFeatures + "\n" + ReplyLanguage
         };
         var image = new VisionImage { image_url = new ImageUrl { url = "data:image/jpeg;base64," + Convert.ToBase64String(jpg) } };
         string body = "{\"model\":\"moonshotai/Kimi-K2.7-Code\",\"messages\":[{\"role\":\"user\",\"content\":["
@@ -128,9 +153,7 @@ internal class SiliconFlowChat
         return answer;
     }
 
-    // Emotion observation for the ambience module: reads recent turns, returns only the
-    // raw JSON command line the ambience bridge expects, or "" when nothing usable came back.
-    public async Task<string> ClassifyEmotion(Func<bool> active)
+    async Task<string> ClassifyEmotion(Message user, Func<bool> active)
     {
         const string rules = "你是心理咨询室的氛围观察器，不参与对话，只判断访客当前的主导情绪。"
             + "只输出一行 JSON，不要输出任何其他文字，格式：{\"action\":\"propose_ambience\",\"preset\":\"sadness\"}。"
@@ -138,15 +161,29 @@ internal class SiliconFlowChat
             + "anger 表示此刻正激动、紧绷、想爆发，已经过去的愤怒算 baseline；calm 表示情绪明显平复、放松下来；"
             + "baseline 表示中性、轻微、混合或拿不准，一律选 baseline。"
             + "注意否定与好转的表达，例如“我恨过他，现在好多了”应判 calm。宁可保守，不要过度判断。";
-        var context = new List<Message> { new Message("system", rules) };
+        var context = new List<Message> { new Message("system", rules + "\n上一轮情绪观察：" + (CurrentEmotion ?? "未知")
+            + "。请根据访客最新发言重新判断，助手的话仅作对话背景。\n" + LocaleContext + " JSON keys and preset values must stay exactly as specified.") };
         int take = Math.Min(6, history.Count);
         if (take > 0) context.AddRange(history.GetRange(history.Count - take, take));
-        // A trailing assistant message makes chat APIs continue it silently; ask explicitly.
-        context.Add(new Message("user", "请根据以上对话判断访客当前的主导情绪，只输出规定格式的一行 JSON。"));
+        context.Add(user);
         var body = JsonUtility.ToJson(new Payload { model = config.model, messages = context.ToArray() });
-        string raw = await Complete(body, active);
-        int open = raw.IndexOf('{'), close = raw.LastIndexOf('}');
-        return open >= 0 && close > open ? raw.Substring(open, close - open + 1) : "";
+        try
+        {
+            string raw = await Complete(body, active, timeoutSeconds: 8);
+            int open = raw.IndexOf('{');
+            int close = raw.LastIndexOf('}');
+            if (open < 0 || close <= open) return null;
+            var result = JsonUtility.FromJson<EmotionResult>(raw.Substring(open, close - open + 1));
+            if (result == null || result.action != "propose_ambience") return null;
+            return result.preset == "baseline" || MindScape.Environment.AmbienceSession.IsPreset(result.preset)
+                ? result.preset : null;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception error)
+        {
+            Debug.LogWarning("Emotion observation unavailable: " + error.GetType().Name);
+            return null;
+        }
     }
 
     void Remember(Message user, string answer)
@@ -156,7 +193,7 @@ internal class SiliconFlowChat
         if (history.Count > 20) history.RemoveRange(0, 2);
     }
 
-    async Task<string> Complete(string body, Func<bool> active)
+    async Task<string> Complete(string body, Func<bool> active, int timeoutSeconds = 60)
     {
         using (var req = new UnityWebRequest(config.endpoint, "POST"))
         {
@@ -164,7 +201,7 @@ internal class SiliconFlowChat
             req.downloadHandler = new DownloadHandlerBuffer();
             req.SetRequestHeader("Content-Type", "application/json");
             req.SetRequestHeader("Authorization", "Bearer " + config.apiKey.Trim());
-            req.timeout = 60;
+            req.timeout = timeoutSeconds;
             req.redirectLimit = 0;
             var op = req.SendWebRequest();
             while (!op.isDone)
@@ -174,10 +211,10 @@ internal class SiliconFlowChat
             }
             if (!active()) throw new OperationCanceledException();
             if (req.result != UnityWebRequest.Result.Success)
-                throw new InvalidOperationException($"连接失败（{req.responseCode}），请检查网络、模型名称和接口配置。");
+                throw new InvalidOperationException(Pick($"连接失败（{req.responseCode}），请检查网络、模型名称和接口配置。", $"Connection failed ({req.responseCode}). Check your network and service settings."));
             var choices = JsonUtility.FromJson<Response>(req.downloadHandler.text)?.choices;
             string answer = choices != null && choices.Length > 0 ? choices[0]?.message?.content : null;
-            if (string.IsNullOrWhiteSpace(answer)) throw new InvalidOperationException("服务没有返回回复正文。");
+            if (string.IsNullOrWhiteSpace(answer)) throw new InvalidOperationException(Pick("服务没有返回回复正文。", "The service returned an empty reply."));
             return answer.Trim();
         }
     }
@@ -202,9 +239,9 @@ internal class SiliconFlowChat
             }
             if (!active()) throw new OperationCanceledException();
             if (req.result != UnityWebRequest.Result.Success)
-                throw new InvalidOperationException($"语音合成失败（{req.responseCode}）");
+                throw new InvalidOperationException(Pick($"语音合成失败（{req.responseCode}）", $"Speech synthesis failed ({req.responseCode})."));
             var clip = DownloadHandlerAudioClip.GetContent(req);
-            if (clip == null) throw new InvalidOperationException("未收到有效音频");
+            if (clip == null) throw new InvalidOperationException(Pick("未收到有效音频", "No valid audio received."));
             return clip;
         }
     }

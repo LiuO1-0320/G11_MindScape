@@ -1,3 +1,4 @@
+using static MindScape.Environment.RoomLanguage;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -32,13 +33,13 @@ public class SandTrayScanner : MonoBehaviour
         var rig = Camera.main ? Camera.main.GetComponentInParent<Unity.XR.CoreUtils.XROrigin>() : null;
         if (rig && !rig.GetComponent<RoomBodyCollision>()) rig.gameObject.AddComponent<RoomBodyCollision>();
         var tour = gameObject.AddComponent<SandTrayTour>();
-        AddButton("识别沙盘", .53f, Recognize);
-        AddButton("游览沙盘", .21f, () => tour.Enter(sand, font));
-        AddButton("重置沙盘", -.53f, ResetTray);
+        AddButton("识别沙盘", "Scan tray", .53f, Recognize);
+        AddButton("游览沙盘", "Enter tray", .21f, () => tour.Enter(sand, font));
+        AddButton("重置沙盘", "Reset tray", -.53f, ResetTray);
         photoCamera.cullingMask &= ~(1 << 5);
     }
 
-    void AddButton(string title, float x, UnityEngine.Events.UnityAction click)
+    void AddButton(string title, string english, float x, UnityEngine.Events.UnityAction click)
     {
         var canvas = new GameObject(title, typeof(RectTransform), typeof(Canvas),
             typeof(TrackedDeviceGraphicRaycaster)).GetComponent<Canvas>();
@@ -63,7 +64,7 @@ public class SandTrayScanner : MonoBehaviour
         label.alignment = TextAnchor.MiddleCenter;
         label.color = new Color32(73, 47, 21, 255);
         label.raycastTarget = false;
-        label.text = title;
+        Bind(label, title, english);
         canvas.gameObject.AddComponent<CanvasScaler>().dynamicPixelsPerUnit = 2f;
         button.SetLabel(label);
         canvas.gameObject.layer = label.gameObject.layer = 5;
@@ -85,13 +86,13 @@ public class SandTrayScanner : MonoBehaviour
         foreach (var piece in FindObjectsOfType<SandPiece>())
         {
             if (!piece.IsOn(sand)) continue;
-            counts.TryGetValue(piece.displayName, out int count);
-            counts[piece.displayName] = count + 1;
-            names[piece.displayName] = piece.spokenName;
+            counts.TryGetValue(piece.LocalizedName, out int count);
+            counts[piece.LocalizedName] = count + 1;
+            names[piece.LocalizedName] = piece.spokenName;
         }
         var items = new List<string>();
         foreach (var entry in counts) items.Add(entry.Key + " × " + entry.Value);
-        string caption = items.Count == 0 ? "沙盘现在是空的。" : "我看到沙盘上有：" + string.Join("、", items) + "。";
+        string caption = items.Count == 0 ? Pick("沙盘现在是空的。", "The tray is empty.") : Pick("我看到沙盘上有：", "On the tray: ") + string.Join(Pick("、", ", "), items) + Pick("。", ".");
         var voice = new List<AudioClip> { items.Count == 0 ? emptyTray : introduction };
         voice.AddRange(names.Values);
         chat.PostTrayPhoto(caption, TakePhoto(), voice);

@@ -1,3 +1,4 @@
+using static MindScape.Environment.RoomLanguage;
 using System.Collections.Generic;
 using Unity.XR.CoreUtils;
 using UnityEngine;
@@ -197,7 +198,7 @@ public class SandTrayTour : MonoBehaviour
         label.color = Color.white;
         label.alignment = TextAnchor.MiddleCenter;
         label.raycastTarget = false;
-        label.text = "退出游览";
+        Bind(label, "退出游览", "Exit tour");
         exitPanel.layer = label.gameObject.layer = 5;
     }
 
@@ -414,14 +415,14 @@ public class SandTrayTour : MonoBehaviour
             tourHint = new GUIStyle(GUI.skin.box) { font = font, fontSize = 12, alignment = TextAnchor.MiddleCenter };
         }
         const float margin = 10, height = 26;
-        if (GUI.Button(ExitRect, "退出游览", tourButton))
+        if (GUI.Button(ExitRect, Pick("退出游览", "Exit tour"), tourButton))
         {
             Leave();
             return;
         }
 
         float bottom = Screen.height - margin - height;
-        const string hint = "WASD / 方向键移动  ·  右键环视  ·  Esc 返回";
+        string hint = Pick("WASD / 方向键移动  ·  右键环视  ·  Esc 返回", "WASD / arrows to move  ·  Right drag to look  ·  Esc to exit");
         float hintWidth = Mathf.Ceil(tourHint.CalcSize(new GUIContent(hint)).x) + 8;
         if (margin * 2 + hintWidth < Screen.width)
             GUI.Box(new Rect(margin, bottom, hintWidth, height), hint, tourHint);

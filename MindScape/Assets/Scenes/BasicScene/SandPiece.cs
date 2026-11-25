@@ -7,6 +7,59 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 public class SandPiece : MonoBehaviour
 {
     public string displayName;
+    static readonly System.Collections.Generic.Dictionary<string, string> EnglishNames =
+        new System.Collections.Generic.Dictionary<string, string> {
+        { "贝壳组", "shell set" },
+        { "草丛", "grass" },
+        { "成年男子", "man" },
+        { "成年女子", "woman" },
+        { "城堡", "castle" },
+        { "大树", "tree" },
+        { "叠石", "cairn" },
+        { "飞机", "airplane" },
+        { "废墟", "ruins" },
+        { "粉花", "flower" },
+        { "佛像", "buddha" },
+        { "拱桥", "arched bridge" },
+        { "蛤壳", "clam" },
+        { "河道", "river" },
+        { "花岗岩", "granite" },
+        { "尖顶栅栏", "picket fence" },
+        { "警察", "police officer" },
+        { "卵石组", "stone set" },
+        { "木板桥", "footbridge" },
+        { "木船", "boat" },
+        { "木制玩具刀枪组", "toy weapon set" },
+        { "牧场栅栏", "rail fence" },
+        { "男孩", "boy" },
+        { "女孩", "girl" },
+        { "盘蛇", "snake" },
+        { "汽车", "car" },
+        { "人偶", "figure" },
+        { "扇贝", "scallop" },
+        { "狮子", "lion" },
+        { "石墩桥", "stone bridge" },
+        { "石头", "pebble" },
+        { "松树", "pine" },
+        { "躺卧者", "reclining person" },
+        { "仙人掌", "cactus" },
+        { "小巴士", "minibus" },
+        { "小狗", "dog" },
+        { "小猫", "cat" },
+        { "小鸟", "bird" },
+        { "小桥", "bridge" },
+        { "小屋", "cottage" },
+        { "孕妇", "pregnant woman" },
+        { "栅栏组", "fence set" },
+        { "长椅", "bench" },
+        { "蒸汽机车", "locomotive" },
+        { "中国龙", "dragon" },
+        { "中式庭院", "courtyard" },
+        { "中式小屋", "chinese house" },
+        { "拄杖老人", "elder" }
+    };
+    public string LocalizedName => MindScape.Environment.RoomLanguage.English && displayName != null &&
+        EnglishNames.TryGetValue(displayName, out var nameInEnglish) ? nameInEnglish : displayName;
     public AudioClip spokenName;
 
     Rigidbody body;
